@@ -20,6 +20,42 @@ st.markdown("""
         font-size: 13px;
         color: #374151;
     }
+    .hero-banner {
+        background: linear-gradient(135deg, #e04848 0%, #f59e0b 100%);
+        color: #ffffff;
+        padding: 18px 22px;
+        border-radius: 12px;
+        margin-bottom: 14px;
+        text-align: center;
+    }
+    .hero-day {
+        font-size: 42px;
+        font-weight: 800;
+        line-height: 1.1;
+        margin: 0;
+    }
+    .hero-sub {
+        font-size: 14px;
+        opacity: 0.92;
+        margin-top: 4px;
+    }
+    .quote-card {
+        background-color: #fff7ed;
+        border-left: 4px solid #f59e0b;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+        font-size: 15px;
+        font-style: italic;
+        color: #374151;
+    }
+    .quote-author {
+        display: block;
+        margin-top: 6px;
+        font-size: 12px;
+        font-style: normal;
+        color: #6b7280;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -44,6 +80,77 @@ def load_data(worksheet_name, default_cols):
 df_weights = load_data("weights", ["date", "weight"])
 df_workouts = load_data("workouts", ["date", "split_type", "completed"])
 df_exercises = load_data("exercise_logs", ["date", "exercise", "set_number", "weight_kg", "reps", "notes"])
+
+# ----------------------------------------------------
+# TRANSFORMATION DAY COUNTER & QUOTE OF THE DAY
+# ----------------------------------------------------
+# Optional: set a fixed start date, e.g. date(2026, 9, 1).
+# Leave as None to use the date of your first logged weight.
+TRANSFORMATION_START = None
+
+MOTIVATIONAL_QUOTES = [
+    ("We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "Will Durant (on Aristotle)"),
+    ("It does not matter how slowly you go as long as you do not stop.", "Confucius"),
+    ("Difficulties strengthen the mind, as labor does the body.", "Seneca"),
+    ("Well done is better than well said.", "Benjamin Franklin"),
+    ("The journey of a thousand miles begins with one step.", "Lao Tzu"),
+    ("He who conquers himself is the mightiest warrior.", "Confucius"),
+    ("No man has the right to be an amateur in the matter of physical training.", "Socrates"),
+    ("Discipline is choosing between what you want now and what you want most.", "Unknown"),
+    ("Small progress is still progress.", "Unknown"),
+    ("The body achieves what the mind believes.", "Unknown"),
+    ("Consistency beats intensity. Show up again tomorrow.", "Unknown"),
+    ("You don't have to be extreme, just consistent.", "Unknown"),
+    ("Every rep counts. Every meal counts. Every day counts.", "Unknown"),
+    ("Strength doesn't come from what you can do. It comes from overcoming what you once couldn't.", "Unknown"),
+    ("Trust the process. The scale is a trend, not a verdict.", "Unknown"),
+]
+
+def get_daily_quote(today):
+    # Same quote all day, a new one each day
+    return MOTIVATIONAL_QUOTES[today.toordinal() % len(MOTIVATIONAL_QUOTES)]
+
+start_date = TRANSFORMATION_START
+if start_date is None and not df_weights.empty:
+    try:
+        start_date = pd.to_datetime(df_weights["date"]).min().date()
+    except Exception:
+        start_date = None
+
+if start_date is not None:
+    day_number = (date.today() - start_date).days + 1
+    weeks, rem_days = divmod(day_number - 1, 7)
+    sub_text = f"Started {start_date.strftime('%d %b %Y')} &middot; {weeks} weeks, {rem_days} days in"
+
+    # Total change since the first weigh-in
+    try:
+        df_tmp = df_weights.copy()
+        df_tmp["date"] = pd.to_datetime(df_tmp["date"])
+        df_tmp["weight"] = pd.to_numeric(df_tmp["weight"])
+        df_tmp = df_tmp.sort_values("date")
+        total_change = df_tmp.iloc[-1]["weight"] - df_tmp.iloc[0]["weight"]
+        sub_text += f" &middot; {total_change:+.1f} kg total"
+    except Exception:
+        pass
+
+    st.markdown(
+        f"""<div class="hero-banner">
+            <div class="hero-sub">TRANSFORMATION</div>
+            <p class="hero-day">Day {day_number}</p>
+            <div class="hero-sub">{sub_text}</div>
+        </div>""",
+        unsafe_allow_html=True
+    )
+else:
+    st.info("Log your first weight to start your transformation day counter 💪")
+
+quote_text, quote_author = get_daily_quote(date.today())
+st.markdown(
+    f"""<div class="quote-card">“{quote_text}”
+        <span class="quote-author">— {quote_author}</span>
+    </div>""",
+    unsafe_allow_html=True
+)
 
 # ----------------------------------------------------
 # NAVIGATION TABS
